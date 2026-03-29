@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block body %}
+
+<style>
+  .task-row {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 15px;
+    overflow-x: auto;
+    padding: 10px;
+  }
+
+  .column-card {
+    min-width: 280px;
+    flex: 0 0 auto;
+  }
+
+  .task-card {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    background-color: #f9f9f9;
+  }
+</style>
+
+<div class="container_task">
+  <h1 class="Tasklist_h">My To-Do List</h1>
+
+  {% if grouped_tasks|length == 0 %}
+    <p>No tasks found</p>
+  {% else %}
+    {% for day, tasks in grouped_tasks.items() %}
+      <h3 class="date-heading">{{ day }}</h3>
+
+      <div class="task-row">   <!-- 🔥 Column layout start -->
+        {% for todo in tasks %}
+          <div class="task-card column-card {% if todo.completed %}completed{% endif %}">
+            <div class="task-header">
+              <h3>{{ todo.title }}</h3>
+              <form action="/complete/{{ todo.sno }}" method="post">
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <input type="checkbox" name="complete"
+                       onchange="this.form.submit()"
+                       {% if todo.completed %}checked{% endif %}>
+              </form>
+            </div>
+
+            <p>{{ todo.content }}</p>
+            <p><strong>From:</strong> {{ todo.from_time }} → <strong>To:</strong> {{ todo.to_time }}</p>
+
+            <div class="task-actions">
+              {% if todo.date_created.date() < today %}
+                <button class="btn btn-secondary btn-sm" disabled>Delete</button>
+                <button class="btn btn-secondary btn-sm" disabled>Update</button>
+              {% else %}
+                <a href="/delete/{{ todo.sno }}" class="btn btn-outline-dark btn-sm">Delete</a>
+                <a href="/update/{{ todo.sno }}" class="btn btn-outline-info btn-sm">Update</a>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>  <!-- 🔥 Column layout end -->
+
+    {% endfor %}
+  {% endif %}
+</div>
+
+<script>
+  const popup = document.getElementById("popup");
+  const closeBtn = document.getElementById("close");
+  let popupShown = localStorage.getItem("firstTaskPopupShown");
+  let task_count = {{ count_todos | tojson }};
+  let total_todo = {{ total_todo | tojson }};
+
+  if (task_count === total_todo && !popupShown) {
+    localStorage.setItem("firstTaskPopupShown", "true");
+    popup.classList.add("open-popup");
+  }
+
+  closeBtn.addEventListener("click", () => {
+    popup.classList.remove("open-popup");
+  });
+
+  window.addEventListener("click", (e) => {
+    if (!popup.contains(e.target) && popup.classList.contains("open-popup")) {
+      popup.classList.remove("open-popup");
+    }
+  });
+</script>
+
+{% endblock %}

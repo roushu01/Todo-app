@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Flask App</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}">    
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+</head>
+<style>
+ 
+</style>
+<body>
+  {% extends "base.html"%}
+
+  {% block body %}
+
+
+    <div class="form-box">
+    <h1>Add To Do</h1>
+
+    <form action="/todo" method="POST" class="form" id="todoForm" onsubmit="return validateOnSubmit()">
+      
+        <label for="title" class="form-label">Add Title</label>
+        <input type="text" class="form-control" id="title" name="title" required />
+      
+   
+        <label for="content" class="form-label">Todo Description</label>
+        <input type="text" class="form-control" id="content" name="content" required />
+   
+        
+        <label for="content" class="form-label">From(Time)</label>
+        <input type="time" class="form-control" id="from_time" name="from_time" required />
+   
+   
+        <label for="content" class="form-label">Todo Description</label>
+        <input type="time" class="form-control" id="to_time" name="to_time" required />
+  
+   
+        <label for="date_created" class="form-label">Date to complete the task</label>
+       
+        <input type="date" id="date_created" name="date_created"
+       value="{{ datetime.utcnow().strftime('%Y-%m-%d') }}"><br>
+
+     
+      <button type="submit" class="btn btn-primary" id="addtask">Submit</button>
+  
+
+    </form>
+     <a href="/send-task-mail">
+    <button class="btn btn-primary">📧 Send Email Reminder</button>
+</a>
+  </div>
+ 
+
+    <div class="popup" id="popup">
+           <img src="{{url_for('static',filename='img.gif')}}" alt="Animation" autoplay>
+
+            <h2>Thank you</h2>
+            <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Perspiciatis repellendus quibusdam sint natus dicta cumque temporibus nihil odit sed dignissimos soluta aut minus, et reiciendis quia consectetur fugit officia omnis!</p>
+            <button type="button" id="close">close</button>
+        </div> 
+ <script> 
+ const popup = document.getElementById("popup");
+const closeBtn = document.getElementById("close");
+
+// count from Flask
+let task_count = {{ count | tojson }};
+
+let popupShown = localStorage.getItem("firstTaskPopupShown");
+
+// Show popup only if this is the first task AND it hasn't been shown before
+if (task_count === 1 && !popupShown) {
+    popup.style.display = "block";
+    localStorage.setItem("firstTaskPopupShown", "true"); // mark as shown
+}
+
+// Close popup on clicking X
+closeBtn.addEventListener("click", () => {
+    popup.style.display = "none";
+});
+
+// Close popup if clicking outside
+window.addEventListener("click", (e) => {
+  if (e.target === popup) {
+    popup.style.display = "none";
+  }
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+  const fromInput = document.getElementById("from_time");
+  const toInput   = document.getElementById("to_time");
+  const dateInput = document.getElementById("date_created");
+  const submitBtn = document.getElementById("addtask");
+
+  // make sure there is an error element; create it if missing so code never crashes
+  let errorMsg = document.getElementById("errorMsg");
+  if (!errorMsg) {
+    errorMsg = document.createElement("div");
+    errorMsg.id = "errorMsg";
+    errorMsg.className = "text-danger mt-2";
+    errorMsg.style.display = "none";
+    const form = document.getElementById("todoForm") || document.querySelector("form");
+    if (form) form.appendChild(errorMsg);
+    else document.body.appendChild(errorMsg);
+  }
+
+  // helper: convert "HH:MM" to minutes since midnight (number)
+  function timeToMinutes(t) {
+    if (!t) return NaN;
+    const parts = t.split(":").map(Number);
+    if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) return NaN;
+    return parts[0] * 60 + parts[1];
+  }
+
+  function validateForm() {
+    const fromTime = fromInput && fromInput.value;
+    const toTime   = toInput && toInput.value;
+    const dateVal  = dateInput && dateInput.value;
+
+    // default: invalid
+    let valid = true;
+    errorMsg.style.display = "none";
+    errorMsg.textContent = "";
+
+    // require inputs exist
+    if (!fromTime || !toTime || !dateVal) {
+      valid = false;
+      // don't show a message until user interacts
+    } else if (fromTime === toTime) {
+      errorMsg.textContent = "From and To time cannot be the same.";
+      valid = false;
+    } else {
+      // date comparison (ignore time-of-day)
+      const selectedDate = new Date(dateVal + "T00:00:00");
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      if (isNaN(selectedDate.getTime())) {
+        errorMsg.textContent = "Please choose a valid date.";
+        valid = false;
+      } else if (selectedDate < todayStart) {
+        errorMsg.textContent = "Date cannot be in the past.";
+        valid = false;
+      } else {
+        // if selected date is today, ensure fromTime >= current time
+        if (selectedDate.getTime() === todayStart.getTime()) {
+          const fromMin = timeToMinutes(fromTime);
+          const nowMin  = now.getHours() * 60 + now.getMinutes();
+          if (isNaN(fromMin)) {
+            errorMsg.textContent = "Invalid from time.";
+            valid = false;
+          } else if (fromMin < nowMin) {
+            errorMsg.textContent = "From time cannot be earlier than the current time.";
+            valid = false;
+          }
+        }
+
+        // also ensure from < to (on same day) — useful guard
+        const fromMin2 = timeToMinutes(fromTime);
+        const toMin2   = timeToMinutes(toTime);
+        if (!isNaN(fromMin2) && !isNaN(toMin2) && fromMin2 > toMin2) {
+          errorMsg.textContent = "From time cannot be later than To time.";
+          valid = false;
+        }
+      }
+    }
+
+    if (!valid && errorMsg.textContent) errorMsg.style.display = "block";
+    else errorMsg.style.display = "none";
+
+    // enable/disable submit
+    if (submitBtn) submitBtn.disabled = !valid;
+  }
+
+  // attach listeners (input + change)
+  const inputs = [fromInput, toInput, dateInput].filter(Boolean);
+  inputs.forEach(el => {
+    el.addEventListener("input", validateForm);
+    el.addEventListener("change", validateForm);
+  });
+
+  // run once on load to set initial button state
+  validateForm();
+
+  // expose validateOnSubmit globally for your inline onsubmit (if you keep it)
+  window.validateOnSubmit = function () {
+    if (submitBtn && submitBtn.disabled) {
+      alert("Please correct the errors before submitting.");
+      return false;
+    }
+    return true;
+  };
+});
+
+</script>
+  <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.js'></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+ {% endblock body %}
