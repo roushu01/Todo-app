@@ -15,19 +15,26 @@ from flask_mail import Mail, Message
 
 app = Flask(__name__)
 
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
+
+app = Flask(__name__)
+
+# Secure secret key
+app.secret_key = os.getenv("SECRET_KEY")
+
+# Mail config
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = '2023btechaidsroushni19776@poornima.edu.in'   # Your Gmail
-app.config['MAIL_PASSWORD'] = 'rrfs zytl ijrc vtpk'     # App password, not normal password
-mail = Mail(app)
+app.config['MAIL_USERNAME'] = os.getenv("MAIL_USERNAME")
+app.config['MAIL_PASSWORD'] = os.getenv("MAIL_PASSWORD")
 
-
-app.secret_key = "supersecretkey"
-# 🔐 Google OAuth Configuration
-app.config["GOOGLE_OAUTH_CLIENT_ID"] = "810897726927-mqcj4at6o0pt6smomqhbua8uindi5gbt.apps.googleusercontent.com"
-app.config["GOOGLE_OAUTH_CLIENT_SECRET"] = "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"
+# Google OAuth config
+app.config["GOOGLE_OAUTH_CLIENT_ID"] = os.getenv("GOOGLE_CLIENT_ID")
+app.config["GOOGLE_OAUTH_CLIENT_SECRET"] = os.getenv("GOOGLE_CLIENT_SECRET")
 app.config["OAUTHLIB_INSECURE_TRANSPORT"] = "1"  # Only for localhost testing
 
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
@@ -74,7 +81,7 @@ def google_login_callback():
     # Get user info from Google API
     resp = google.get("/oauth2/v2/userinfo")
     if not resp.ok:
-        flash(f"Failed to fetch user info: {resp.text}", "error")
+        # flash(f"Failed to fetch user info: {resp.text}", "error")
         return redirect(url_for("login"))
 
     user_info = resp.json()
@@ -83,7 +90,7 @@ def google_login_callback():
     # Safely extract data
     email = user_info.get("email")
     if not email:
-        flash("Google login failed — no email returned. Check your OAuth scopes.", "error")
+        # flash("Google login failed — no email returned. Check your OAuth scopes.", "error")
         return redirect(url_for("login"))
 
     username = user_info.get("name", email.split("@")[0])
@@ -96,7 +103,7 @@ def google_login_callback():
         db.session.commit()
 
     login_user(user)
-    flash("Logged in with Google successfully!", "success")
+    # flash("Logged in with Google successfully!", "success")
     return redirect(url_for("create_todo"))
 
 
