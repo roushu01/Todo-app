@@ -160,7 +160,7 @@ def send_task_mail():
     )
     msg.body = f"Hello {current_user.username},\n\nHere are your pending tasks:\n\n{body_msg}\n\n✔ Complete them on time!\n\n— Task Manager App"
 
-    mail.send(msg)
+    user_email.send(msg)
     return "Email sent successfully"
 
 
